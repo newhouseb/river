@@ -121,7 +121,10 @@ class CometConnections(tornado.web.RequestHandler):
 	def tellall(js):
 		copy = set(CometConnections.connections)
 		for connection in copy:
-			connection.tell(js)
+			try:
+				connection.tell(js)
+			except IOError:
+				CometConnections.connections.remove(connection)
 
 
 class MainHandler(tornado.web.RequestHandler):
