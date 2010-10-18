@@ -27,9 +27,7 @@ function waitForMsg() {
       error: function(XMLHttpRequest, textStatus, errorThrown) { waitForMsg(); }
     });
 };
-window.onload = function(){
-	setTimeout('waitForMsg()', 1);
-};
+window.onload = function(){ setTimeout('waitForMsg()', 1); };
 </script>
 </head>
 <body>%s</body>
@@ -87,12 +85,19 @@ class MainHandler(tornado.web.RequestHandler):
 		db = Database()
 		for user in users:
 			events = db.get(user=user, limit=10)
-			events = ''.join(['<div class="skitch_event"><img src="http://skitch.ariaglassworks.com/%s" /></div>' % cPickle.loads(str(row[2]))['url'] for row in events])
-			events = '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user, events)
+			formatted_events = ''
+			for event in events:
+				info = cPickle.loads(str(event[2]))
+				if info['type'] == 'image':
+					formatted_events += '<div class="skitch_event"><img src="http://skitch.ariaglassworks.com/%s" /></div>' % info['url']
+				else:
+					formatted_events += ''
+			events = '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user, formatted_events)
 			self.write(page % events)
 
 class GitHook(tornado.web.RequestHandler):
 	def get(self):
+		pass
 
 
 class FileWatcher(threading.Thread):
