@@ -96,7 +96,7 @@ class MainHandler(tornado.web.RequestHandler):
 			self.write(page % events)
 
 class GitHook(tornado.web.RequestHandler):
-	def get(self):
+	def post(self):
 		pass
 
 
