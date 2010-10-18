@@ -10,6 +10,7 @@ import signal
 import sys
 import hashlib
 import random
+import string
 
 site_root = 'http://skitch.ariaglassworks.com/'
 users = ['ben', 'terrence']
