@@ -21,6 +21,9 @@ page = '''
 <style type="text/css">
 .column{float:left;text-align:center;font-family:helvetica;}
 .skitch_event{margin: 20px;}
+.git_event{margin-top: 50px; margin-top: 50px;}
+.git_message{font-size: 25pt; font-family: times new roman;}
+.timestamp{text-align: left}
 </style>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script type="text/javascript">
@@ -28,9 +31,45 @@ function waitForMsg() {
     $.ajax({
       type: "GET", url: "/comet", async: true, cache: false, timeout: 50000,
       success: function(data) { eval(data); waitForMsg(); },
-      error: function(XMLHttpRequest, textStatus, errorThrown) { waitForMsg(); }
+      error: function(XMLHttpRequest, textStatus, errorThrown) { if(textStatus != 'error') waitForMsg(); }
     });
 };
+/*
+ * JavaScript Pretty Date
+ * Copyright (c) 2008 John Resig (jquery.com)
+ * Licensed under the MIT license.
+ */
+// Takes an ISO time and returns a string representing how
+// long ago the date represents.
+function prettyDate(time){
+	var date = new Date(); date.setTime(time*1000);
+	var diff = (((new Date()).getTime() - date.getTime()) / 1000),
+		day_diff = Math.floor(diff / 86400);
+			
+	if ( isNaN(day_diff) || day_diff < 0 || day_diff >= 31 )
+		return;
+			
+	return day_diff == 0 && (
+			diff < 60 && "just now" ||
+			diff < 120 && "1 minute ago" ||
+			diff < 3600 && Math.floor( diff / 60 ) + " minutes ago" ||
+			diff < 7200 && "1 hour ago" ||
+			diff < 86400 && Math.floor( diff / 3600 ) + " hours ago") ||
+		day_diff == 1 && "Yesterday" ||
+		day_diff < 7 && day_diff + " days ago" ||
+		day_diff < 31 && Math.ceil( day_diff / 7 ) + " weeks ago";
+}
+function prettyLinks(){
+        var links = document.getElementsByClassName("timestamp");
+        for ( var i = 0; i < links.length; i++ )
+                if ( links[i].title ) {
+                        var date = prettyDate(links[i].title);
+                        if ( date )
+                                links[i].innerHTML = date;
+                }
+}
+prettyLinks();
+setInterval(prettyLinks, 5000);
 window.onload = function(){ setTimeout('waitForMsg()', 1); };
 </script>
 </head>
@@ -86,6 +125,8 @@ class CometConnections(tornado.web.RequestHandler):
 
 
 class MainHandler(tornado.web.RequestHandler):
+	def time_format(self, time):
+		return str(time)
 	def get(self):
 		db = Database()
 		for user in users:
@@ -94,9 +135,9 @@ class MainHandler(tornado.web.RequestHandler):
 			for event in events:
 				info = cPickle.loads(str(event[2]))
 				if info['type'] == 'image':
-					formatted_events += '<div class="skitch_event"><img src="http://skitch.ariaglassworks.com/%s" /></div>' % info['url']
+					formatted_events += '<div class="skitch_event"><div class="timestamp" title="%s"></div><img src="http://skitch.ariaglassworks.com/%s" /></div>' % (self.time_format(event[3]), info['url'])
 				else:
-					formatted_events += '<div class="git_event">%s</div>' % info['message']
+					formatted_events += '<div class="git_event"><div class="timestamp" title="%s"></div><div class="git_message">%s</div></div>' % (self.time_format(event[3]), info['message'])
 			events = '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user, formatted_events)
 			self.write(page % events)
 
