@@ -80,7 +80,8 @@ class CometConnections(tornado.web.RequestHandler):
 
 	@staticmethod
 	def tellall(js):
-		for connection in CometConnections.connections:
+		copy = set(CometConnections.connections)
+		for connection in copy:
 			connection.tell(js)
 
 
