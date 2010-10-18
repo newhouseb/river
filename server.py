@@ -22,6 +22,7 @@ page = '''
 .column{float:left;text-align:center;font-family:helvetica;}
 .skitch_event{margin: 20px;}
 </style>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script type="text/javascript">
 function waitForMsg() {
     $.ajax({
@@ -60,7 +61,7 @@ class Database(object):
 			(' user=:user ' if user else '') + 
 			(' and ' if (user and key) else '') +
 			(' key=:key ' if key else '') + 
-			' order by time' + 
+			' order by time desc ' + 
 			(' limit :limit' if limit else '') , 
 			{'user': user, 'key': key, 'limit': limit })
 		return rows.fetchall()
@@ -94,7 +95,7 @@ class MainHandler(tornado.web.RequestHandler):
 				if info['type'] == 'image':
 					formatted_events += '<div class="skitch_event"><img src="http://skitch.ariaglassworks.com/%s" /></div>' % info['url']
 				else:
-					formatted_events += ''
+					formatted_events += '<div class="git_event">%s</div>' % info['message']
 			events = '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user, formatted_events)
 			self.write(page % events)
 
@@ -103,6 +104,7 @@ class GitHook(tornado.web.RequestHandler):
 		db = Database()
 		key =  ''.join([random.choice(string.letters) for x in xrange(64)]) #TODO: use the git revision hash
 		db.add(user=self.get_argument("user"), key=key, value=cPickle.dumps({'type': 'commit', 'message': self.get_argument("message")}))
+		CometConnections.tellall('history.go(0);')
 
 class FileWatcher(threading.Thread):
 	def __init__(self, path):
@@ -120,10 +122,14 @@ class FileWatcher(threading.Thread):
 				for filename in filenames:
 					files.append(os.path.join(dirpath, filename))
 			current	= set([file[len(self.path) + 1:] for file in files if file[-4:] == ".jpg"])
+			updated = 0
 			for new_file in current - existing:
 				if not db.get(key=new_file):
+					updated += 1
 					user = new_file.split('/')[0]
 					db.add(user=user, key=new_file, value=cPickle.dumps({'type': 'image', 'url':new_file}))
+			if updated:
+				CometConnections.tellall('history.go(0);')
 			existing = current
 			time.sleep(1)
 
