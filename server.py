@@ -8,6 +8,7 @@ import cPickle
 import threading
 import signal
 import sys
+import hashlib
 
 site_root = 'http://skitch.ariaglassworks.com/'
 users = ['ben', 'terrence']
@@ -97,9 +98,9 @@ class MainHandler(tornado.web.RequestHandler):
 
 class GitHook(tornado.web.RequestHandler):
 	def post(self):
-
-		pass
-
+		db = Database()
+		key =  ''.join([random.choice(string.letters) for x in xrange(64)]) #TODO: use the git revision hash
+		db.add(user=self.get_argument("user"), key=key, value=cPickle.dumps({'type': 'commit', 'message': self.get_argument("message")}))
 
 class FileWatcher(threading.Thread):
 	def __init__(self, path):
@@ -127,6 +128,7 @@ class FileWatcher(threading.Thread):
 application = tornado.web.Application([
 	(r"/", MainHandler),
 	(r"/comet", CometConnections),
+	(r"/githook", GitHook),
 ])
 
 if __name__ == "__main__":
