@@ -9,6 +9,7 @@ import threading
 import signal
 import sys
 import hashlib
+import random
 
 site_root = 'http://skitch.ariaglassworks.com/'
 users = ['ben', 'terrence']
