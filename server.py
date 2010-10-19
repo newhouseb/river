@@ -12,12 +12,15 @@ import hashlib
 import random
 import string
 
-site_root = 'http://skitch.ariaglassworks.com/'
-users = [{'username': 'ben', 'fullname': 'Ben Newhouse'}, {'username': 'terrence', 'fullname': 'Terrence McArdle'}]
+import config
+# skitch_root = 'http://skitch.google.com/'
+# skitch_path = '/home/skitch'
+# users = [{'username': 'John', 'fullname': 'John Smith'}]
 
 page = '''
 <html>
 <head>
+<title>River</title>
 <style type="text/css">
 .column{float:left;text-align:center;font-family:helvetica;-webkit-box-sizing:border-box;padding:50px;}
 .skitch_event{width: 100%%; margin-top: 50px;}
@@ -138,16 +141,16 @@ class MainHandler(tornado.web.RequestHandler):
 	def get(self):
 		db = Database()
 		pagebody = ''
-		for user in users:
+		for user in config.users:
 			events = db.get(user=user['username'], limit=10)
 			formatted_events = ''
 			for event in events:
 				info = cPickle.loads(str(event[2]))
 				if info['type'] == 'image':
-					formatted_events += '<div class="skitch_event"><div class="timestamp" title="%s"></div><img src="http://skitch.ariaglassworks.com/%s" /></div>' % (self.time_format(event[3]), info['url'])
+					formatted_events += '<div class="skitch_event"><div class="timestamp" title="%s"></div><img src="%s%s" /></div>' % (self.time_format(event[3]), config.skitch_root, info['url'])
 				else:
 					formatted_events += '<div class="git_event"><div class="timestamp" title="%s"></div><div class="git_message">&ldquo;%s&rdquo;</div></div>' % (self.time_format(event[3]), info['message'])
-			pagebody += '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user['fullname'], formatted_events)
+			pagebody += '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(config.users), user['fullname'], formatted_events)
 		self.write(page % pagebody)
 
 class GitHook(tornado.web.RequestHandler):
@@ -191,7 +194,7 @@ application = tornado.web.Application([
 ])
 
 if __name__ == "__main__":
-	fw = FileWatcher("/home/skitch")
+	fw = FileWatcher(config.skitch_path)
 	fw.start()
 
 	http_server = tornado.httpserver.HTTPServer(application)
