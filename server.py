@@ -116,7 +116,8 @@ class CometConnections(tornado.web.RequestHandler):
 		CometConnections.connections.add(self)
 
 	def tell(self, js):
-		CometConnections.connections.remove(self)
+		if self in CometConnections.connections:
+			CometConnections.connections.remove(self)
 		self.write(js)
 		self.finish()
 
@@ -127,7 +128,8 @@ class CometConnections(tornado.web.RequestHandler):
 			try:
 				connection.tell(js)
 			except IOError:
-				CometConnections.connections.remove(connection)
+				if connection in CometConnections.connections:
+					CometConnections.connections.remove(connection)
 
 
 class MainHandler(tornado.web.RequestHandler):
