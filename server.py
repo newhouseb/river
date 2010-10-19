@@ -23,7 +23,7 @@ import config
 #import subprocess
 #import urllib
 #import os
-#
+# 
 #commit = subprocess.Popen(["/usr/bin/head", "-n", "1", sys.argv[1]], stdout=subprocess.PIPE).communicate()[0]
 #name = (get a username somehow up to you)
 #os.system('curl -d "%s" http://river.google.com/githook' % urllib.urlencode({'message': commit, 'user': name}))
