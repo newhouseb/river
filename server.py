@@ -13,17 +13,19 @@ import random
 import string
 
 site_root = 'http://skitch.ariaglassworks.com/'
-users = ['ben', 'terrence']
+users = [{'username': 'ben', 'fullname': 'Ben Newhouse'}, {'username': 'terrence', 'fullname': 'Terrence McArdle'}]
 
 page = '''
 <html>
 <head>
 <style type="text/css">
-.column{float:left;text-align:center;font-family:helvetica;}
-.skitch_event{margin: 20px;}
-.git_event{margin-top: 50px; margin-top: 50px;}
+.column{float:left;text-align:center;font-family:helvetica;-webkit-box-sizing:border-box;padding:50px;}
+.skitch_event{width: 100%%; margin-top: 50px;}
+.git_event{width: 100%%;margin-top: 50px; margin-top: 50px;}
 .git_message{font-size: 25pt; font-family: times new roman;}
-.timestamp{text-align: left}
+.timestamp{text-align: left; font-style:italic; margin:20px; }
+.column{border-right: 1px dashed black;}
+.column:last-child{border-left: 0px solid black;}
 </style>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script type="text/javascript">
@@ -68,9 +70,8 @@ function prettyLinks(){
                                 links[i].innerHTML = date;
                 }
 }
-prettyLinks();
 setInterval(prettyLinks, 5000);
-window.onload = function(){ setTimeout('waitForMsg()', 1); };
+window.onload = function(){ prettyLinks(); setTimeout('waitForMsg()', 1); };
 </script>
 </head>
 <body>%s</body>
@@ -81,7 +82,8 @@ class Database(object):
             key varchar(250) primary key,
             user varchar(250),
             value text,
-            time integer
+            time integer,
+	    disabled integer
         );"""
 
 	def __init__(self):
@@ -90,13 +92,14 @@ class Database(object):
         	c.execute(Database.table)
 
 	def add(self, user, key, value, timestamp=None):
-		self.conn.execute('insert or ignore into events values (?, ?, ?, ?)', (key, user, value, timestamp or time.time()))
+		self.conn.execute('insert or ignore into events values (?, ?, ?, ?, 0)', (key, user, value, timestamp or time.time()))
 		self.conn.commit()
 
 	def get(self, user=None, key=None, limit=None):
 		c = self.conn.cursor()
 		rows = c.execute('select * from events ' + 
-			(' where ' if user or key else '') +
+			(' where disabled=0 ')
+			 +(' and ' if user or key else '') +
 			(' user=:user ' if user else '') + 
 			(' and ' if (user and key) else '') +
 			(' key=:key ' if key else '') + 
@@ -132,17 +135,18 @@ class MainHandler(tornado.web.RequestHandler):
 		return str(time)
 	def get(self):
 		db = Database()
+		pagebody = ''
 		for user in users:
-			events = db.get(user=user, limit=10)
+			events = db.get(user=user['username'], limit=10)
 			formatted_events = ''
 			for event in events:
 				info = cPickle.loads(str(event[2]))
 				if info['type'] == 'image':
 					formatted_events += '<div class="skitch_event"><div class="timestamp" title="%s"></div><img src="http://skitch.ariaglassworks.com/%s" /></div>' % (self.time_format(event[3]), info['url'])
 				else:
-					formatted_events += '<div class="git_event"><div class="timestamp" title="%s"></div><div class="git_message">%s</div></div>' % (self.time_format(event[3]), info['message'])
-			events = '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user, formatted_events)
-			self.write(page % events)
+					formatted_events += '<div class="git_event"><div class="timestamp" title="%s"></div><div class="git_message">&ldquo;%s&rdquo;</div></div>' % (self.time_format(event[3]), info['message'])
+			pagebody += '<div class="column" style="width: %i%%;"><h1>%s</h1>%s</div>' % (100/len(users), user['fullname'], formatted_events)
+		self.write(page % pagebody)
 
 class GitHook(tornado.web.RequestHandler):
 	def post(self):
