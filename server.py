@@ -34,7 +34,7 @@ page = '''
 <head>
 <title>not 4chan</title>
 <style type="text/css">
-body{padding: 0px; border: 0px;}
+body{padding: 0px; border: 0px; overflow-y: scroll;}
 .column{float:left;text-align:center;font-family:helvetica;-webkit-box-sizing:border-box;padding:50px;}
 .skitch_event{width: 100%%; margin-top: 50px;}
 .skitch_event img {width: 100%%;}
@@ -48,7 +48,7 @@ body{padding: 0px; border: 0px;}
 .tags a{color: #ddd; margin-right: 10px; text-decoration: none; font-family: helvetica;text-shadow:0 1px 0 #333;}
 .tags a.selected{color: #fff; font-weight: bold;}
 .tags a:hover{color: #aaa;}
-.title { position: absolute; top: 5px; right: 5px; font-size: 25px; color: #444; font-family: helvetica; margin-right: 25px;}
+.title {text-shadow: 0 1px 0 #999; position: absolute; top: 5px; right: 5px; font-size: 25px; color: #444; font-family: helvetica; margin-right: 25px;}
 </style>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script type="text/javascript">
