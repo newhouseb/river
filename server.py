@@ -3,6 +3,7 @@ import tornado.ioloop
 import tornado.web
 import sqlite3
 import time
+import re
 import os
 import cPickle
 import threading
@@ -13,8 +14,8 @@ import random
 import string
 
 import config
-# skitch_root = 'http://skitch.google.com/'
-# skitch_path = '/home/skitch'
+#skitch_root = 'http://skitch.google.com/'
+#skitch_path = '/home/skitch'
 # users = [{'username': 'John', 'fullname': 'John Smith'}]
 
 # Example githook (commit-msg)
@@ -31,15 +32,23 @@ import config
 page = '''
 <html>
 <head>
-<title>River</title>
+<title>not 4chan</title>
 <style type="text/css">
+body{padding: 0px; border: 0px;}
 .column{float:left;text-align:center;font-family:helvetica;-webkit-box-sizing:border-box;padding:50px;}
 .skitch_event{width: 100%%; margin-top: 50px;}
+.skitch_event img {width: 100%%;}
+.skitch_event img:hover {width: auto;}
 .git_event{width: 100%%;margin-top: 50px; margin-top: 50px;}
 .git_message{font-size: 25pt; font-family: times new roman;}
 .timestamp{text-align: left; font-style:italic; margin:20px; }
 .column{border-right: 1px dashed black;}
 .column:last-child{border-left: 0px solid black;}
+.tags{position: fixed; background: #666; width: 100%%; top: 0px; left: 0px; border-bottom: #ddd 2px solid; padding: 10px;}
+.tags a{color: #ddd; margin-right: 10px; text-decoration: none; font-family: helvetica;text-shadow:0 1px 0 #333;}
+.tags a.selected{color: #fff; font-weight: bold;}
+.tags a:hover{color: #aaa;}
+.title { position: absolute; top: 5px; right: 5px; font-size: 25px; color: #444; font-family: helvetica; margin-right: 25px;}
 </style>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script type="text/javascript">
@@ -92,7 +101,7 @@ window.onload = function(){ prettyLinks(); setTimeout('waitForMsg()', 1); };
 </html>'''
 
 class Database(object):
-	table = """CREATE TABLE IF NOT EXISTS events (
+	table1 = """CREATE TABLE IF NOT EXISTS events (
             key varchar(250) primary key,
             user varchar(250),
             value text,
@@ -100,27 +109,45 @@ class Database(object):
 	    disabled integer
         );"""
 
+	table2 = """
+	CREATE TABLE IF NOT EXISTS tags (
+            key varchar(250),
+            tag text
+        );"""
+
 	def __init__(self):
 		self.conn = sqlite3.connect('river.db')
         	c = self.conn.cursor()
-        	c.execute(Database.table)
+        	c.execute(Database.table1)
+        	c.execute(Database.table2)
 
 	def add(self, user, key, value, timestamp=None):
 		self.conn.execute('insert or ignore into events values (?, ?, ?, ?, 0)', (key, user, value, timestamp or time.time()))
+		tags = [tag[1:-1] for tag in re.findall("\([^)]+\)", key)] + [user]
+		print tags
+		for t in tags:
+			self.conn.execute('insert or ignore into tags values (?, ?)', (key, t)) 
 		self.conn.commit()
 
-	def get(self, user=None, key=None, limit=None):
+	def get(self, user=None, key=None, limit=None, tag=None):
 		c = self.conn.cursor()
-		rows = c.execute('select * from events ' + 
+		rows = c.execute('select * from events' + 
+			(', tags ' if tag else '') +
 			(' where disabled=0 ')
+			+ (' and events.key = tags.key and tags.tag = :tag ' if tag else '')
 			 +(' and ' if user or key else '') +
 			(' user=:user ' if user else '') + 
 			(' and ' if (user and key) else '') +
 			(' key=:key ' if key else '') + 
 			' order by time desc ' + 
 			(' limit :limit' if limit else '') , 
-			{'user': user, 'key': key, 'limit': limit })
+			{'user': user, 'key': key, 'limit': limit, 'tag': tag })
 		return rows.fetchall()
+
+	def tags(self):
+		c = self.conn.cursor()
+		rows = c.execute('select tag from tags group by tag order by count(*) desc')
+		return [r[0] for r in rows.fetchall()]
 
 class CometConnections(tornado.web.RequestHandler):
 	connections = set({})
@@ -149,11 +176,14 @@ class CometConnections(tornado.web.RequestHandler):
 class MainHandler(tornado.web.RequestHandler):
 	def time_format(self, time):
 		return str(time)
-	def get(self):
+	def get(self, tag=None):
 		db = Database()
-		pagebody = ''
+		pagebody = '<div class="tags"><a href="/">[all]</a>' + ' '.join(['<a class="%s" href="/%s">%s</a>' % ("selected" if t == tag else "", t, t) for t in db.tags()]) + '<div class="title">' + tag + ' : not 4chan</div></div>'
 		for user in config.users:
-			events = db.get(user=user['username'], limit=10)
+			if tag:
+				events = db.get(user=user['username'], tag=tag)
+			else:
+				events = db.get(user=user['username'], limit=10)
 			formatted_events = ''
 			for event in events:
 				info = cPickle.loads(str(event[2]))
@@ -186,7 +216,7 @@ class FileWatcher(threading.Thread):
 			for dirpath, dirnames, filenames in directories:
 				for filename in filenames:
 					files.append(os.path.join(dirpath, filename))
-			current	= set([file[len(self.path) + 1:] for file in files if file[-4:] == ".jpg"])
+			current	= set([file[len(self.path) + 1:] for file in files if file[-4:] == ".jpg" or file[-4:] == ".png"])
 			updated = 0
 			for new_file in current - existing:
 				if not db.get(key=new_file):
@@ -199,9 +229,9 @@ class FileWatcher(threading.Thread):
 			time.sleep(1)
 
 application = tornado.web.Application([
-	(r"/", MainHandler),
 	(r"/comet", CometConnections),
 	(r"/githook", GitHook),
+	(r"/(?P<tag>.*)", MainHandler),
 ])
 
 if __name__ == "__main__":
@@ -209,7 +239,7 @@ if __name__ == "__main__":
 	fw.start()
 
 	http_server = tornado.httpserver.HTTPServer(application)
-	http_server.listen(8888)
+	http_server.listen(9876)
 	tn = tornado.ioloop.IOLoop.instance()
 	try:
 		tn.start()
